@@ -7,7 +7,7 @@ from urllib.request import urlopen
 
 AUTH0_DOMAIN = 'dev-bge3486a.us.auth0.com'
 ALGORITHMS = ['RS256']
-API_AUDIENCE = 'coffeestore'
+API_AUDIENCE = 'mycoffee'
 
 ## AuthError Exception
 '''
