@@ -1,4 +1,5 @@
 import os
+from urllib import response
 from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
@@ -14,6 +15,13 @@ CORS(app)
 db_drop_and_create_all()
 
 # ROUTES
+
+@app.route("/drinks", methods=["GET"])
+def drink_list():
+    # Get all the drinks from db
+    drinks = Drink.query.all()
+    return jsonify({"success": True, "drinks": [d.short() for d in drinks]}), 200
+
 
 @app.route('/drinks')
 @requires_auth('get:drinks')
@@ -38,18 +46,17 @@ def get_detailed_drinks(payload):
 @app.route('/drinks', methods=['POST'])
 @requires_auth('post:drinks')
 def post_drink(payload):
+    body = request.get_json()
     try:
-        body = request.get_json()
-        title = body.get('title')
-        recipe = json.dumps(body.get('recipe'))
-        new_drink = Drink(title=title, recipe=recipe)
-        new_drink.insert()
-    except:
-        abort(500)
-    return jsonify({
-        'success': True,
-        'drinks': new_drink.long()
-    })
+        # Prepare Drink for DB
+        drink = Drink(title=body.get("title"), recipe=json.dumps(body.get("recipe")))
+        # Commit to DB
+        drink.insert()
+
+    except Exception:
+        abort(400)
+
+    return jsonify({"success": True, "drinks": [drink.long()]})
 
 @app.route('/drinks/<int:id>', methods=['PATCH'])
 @requires_auth('patch:drinks')
@@ -59,8 +66,8 @@ def edit_existing_drink(payload, id):
         abort(404)
     try:
         body = request.get_json()
-        title = body.get('title')
-        recipe = json.dumps(body.get('recipe'))
+        title = body.get('title', None)
+        recipe = json.dumps(body.get('recipe', None))
         if title:
             drink.title = title
         if recipe:
@@ -70,7 +77,7 @@ def edit_existing_drink(payload, id):
         abort(500)
     return jsonify({
         'success': True,
-        'drinks': drink.long()
+        'drinks': [drink.long()]
     })
 
 @app.route('/drinks/<int:id>', methods=['DELETE'])
@@ -149,6 +156,14 @@ def unauthorized(error):
         ),
         401,
     )
+@app.errorhandler(AuthError)
+def handle_auth_error(ex):
+    """
+    Receive the raised authorixation error and propagates as response
+    """
+    response = jsonify(ex.error)
+    response.status_code = ex.status_code
+    return response
 
 @app.errorhandler(500)
 def server_error(error):
